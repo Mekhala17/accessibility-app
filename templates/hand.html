@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Hand Sign Recognition</h2>
+
+<img src="/video_feed" width="960" height="540">
+
+<script>
+window.addEventListener("beforeunload", function () {
+    navigator.sendBeacon("/stop_camera");
+});
+</script>
+
+{% endblock %}
