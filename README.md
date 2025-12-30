@@ -65,7 +65,12 @@ By combining **voice and gesture interfaces**, the app creates an **inclusive, m
 - Add a **customizable user interface** for individual accessibility needs.
 
 ---
-## Preview
+## 🎬 Demo
+
+[![Watch the Demo](https://img.youtube.com/vi/aQF05q1Ozj0/0.jpg)](https://youtu.be/aQF05q1Ozj0)
+
+Or watch directly: [Accessibility App Demo](https://youtu.be/aQF05q1Ozj0)
+
 
 
 
