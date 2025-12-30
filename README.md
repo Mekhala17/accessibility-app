@@ -1,5 +1,3 @@
-# accessibility-app
-Web-based hand gesture and voice controlled accessibility application
 # Accessibility App
 
 A **hand gesture and voice-controlled application** built using **Python**, **Flask**, and **MediaPipe**.  
@@ -68,10 +66,6 @@ By combining **voice and gesture interfaces**, the app creates an **inclusive, m
 ## 🎬 Demo
 
 [![Watch the Demo](https://img.youtube.com/vi/aQF05q1Ozj0/0.jpg)](https://youtu.be/aQF05q1Ozj0)
-
-Or watch directly: [Accessibility App Demo](https://youtu.be/aQF05q1Ozj0)
-
-
 
 
 ## 📜 Credits
