@@ -56,7 +56,6 @@ By combining **voice and gesture interfaces**, the app creates an **inclusive, m
 
 ---
 
-## Preview
 ## 🔮 Future Enhancements
 
 - Expand the **gesture library** to include more signs and commands.  
@@ -66,6 +65,9 @@ By combining **voice and gesture interfaces**, the app creates an **inclusive, m
 - Add a **customizable user interface** for individual accessibility needs.
 
 ---
+## Preview
+
+
 
 ## 📜 Credits
 
