@@ -1,7 +1,308 @@
-{% extends "base.html" %}
-{% block content %}
-<h1>Accessibility Assistant</h1>
-<p>Helping Deaf, Mute and Blind Users</p>
-<button onclick="location.href='/hand'">Hand Sign Recognition</button>
-<button onclick="location.href='/voice'">Voice Commands</button>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Accessibility Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080e1a;
+      --surface: #0d1626;
+      --card: #111d33;
+      --border: #1e3050;
+      --accent: #00e5a0;
+      --accent2: #00b8ff;
+      --warn: #ff6b35;
+      --text: #e8f0fe;
+      --muted: #5a7a9a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ambient grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Radial glow center */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,160,0.045) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,14,26,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2.5rem;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1.5rem 2rem;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-title .gradient {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 480px;
+      line-height: 1.7;
+      margin-bottom: 3rem;
+      font-weight: 400;
+    }
+
+    /* Feature cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      max-width: 900px;
+      width: 100%;
+      margin-bottom: 3rem;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .feature-card:nth-child(1)::before {
+      background: radial-gradient(circle at 30% 30%, rgba(0,229,160,0.08), transparent 65%);
+    }
+    .feature-card:nth-child(2)::before {
+      background: radial-gradient(circle at 30% 30%, rgba(0,184,255,0.08), transparent 65%);
+    }
+    .feature-card:nth-child(3)::before {
+      background: radial-gradient(circle at 30% 30%, rgba(255,107,53,0.08), transparent 65%);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+    }
+
+    .feature-card:nth-child(1):hover { border-color: rgba(0,229,160,0.35); }
+    .feature-card:nth-child(2):hover { border-color: rgba(0,184,255,0.35); }
+    .feature-card:nth-child(3):hover { border-color: rgba(255,107,53,0.35); }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .feature-card:nth-child(1) .card-icon { background: rgba(0,229,160,0.1); }
+    .feature-card:nth-child(2) .card-icon { background: rgba(0,184,255,0.1); }
+    .feature-card:nth-child(3) .card-icon { background: rgba(255,107,53,0.1); }
+
+    .card-body { position: relative; z-index: 1; }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.01em;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .card-arrow {
+      margin-top: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: gap 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .feature-card:nth-child(1) .card-arrow { color: var(--accent); }
+    .feature-card:nth-child(2) .card-arrow { color: var(--accent2); }
+    .feature-card:nth-child(3) .card-arrow { color: var(--warn); }
+
+    .feature-card:hover .card-arrow { gap: 10px; }
+
+
+
+    @media (max-width: 768px) {
+      .cards { grid-template-columns: 1fr; max-width: 400px; }
+      .hero-title { font-size: 2.4rem; }
+      .stats-row { gap: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Access</a>
+  <a href="/" class="active">Home</a>
+  <a href="/hand">Hand Signs</a>
+  <a href="/voice">Voice</a>
+  <a href="/eye">Eye Gaze</a>
+</nav>
+
+<div class="hero">
+
+  <h1 class="hero-title">
+    Communicate<br>
+    <span class="gradient">Without Barriers</span>
+  </h1>
+
+  <p class="hero-sub">
+    An assistive platform for deaf, mute, and blind users —
+    combining hand sign recognition, voice commands, and eye gaze control.
+  </p>
+
+  <!-- Feature cards -->
+  <div class="cards">
+
+    <a class="feature-card" href="/hand">
+      <div class="card-icon">🤟</div>
+      <div class="card-body">
+        <div class="card-title">Hand Signs</div>
+        <div class="card-desc">Recognise 6 sign language gestures in real time and speak them aloud.</div>
+      </div>
+      <div class="card-arrow">OPEN  →</div>
+    </a>
+
+    <a class="feature-card" href="/voice">
+      <div class="card-icon">🎙️</div>
+      <div class="card-body">
+        <div class="card-title">Voice Commands</div>
+        <div class="card-desc">Speak naturally to open apps, control the system, and get responses.</div>
+      </div>
+      <div class="card-arrow">OPEN  →</div>
+    </a>
+
+    <a class="feature-card" href="/eye">
+      <div class="card-icon">👁️</div>
+      <div class="card-body">
+        <div class="card-title">Eye Gaze</div>
+        <div class="card-desc">Control the mouse cursor with your eyes and click by blinking.</div>
+      </div>
+      <div class="card-arrow">OPEN  →</div>
+    </a>
+
+  </div>
+
+
+
+</div>
+
+</body>
+</html>

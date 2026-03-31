@@ -1,6 +1,857 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Voice Command Assistant</h2>
-<p>Try saying: <b>Open YouTube</b></p>
-<button onclick="fetch('/listen_voice')">Start Listening</button>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Voice Commands — Accessibility Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080e1a;
+      --surface: #0d1626;
+      --card: #111d33;
+      --border: #1e3050;
+      --accent: #00e5a0;
+      --accent2: #00b8ff;
+      --warn: #ff6b35;
+      --text: #e8f0fe;
+      --muted: #5a7a9a;
+      --glow: 0 0 24px rgba(0, 229, 160, 0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,14,26,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2.5rem;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .page-title span {
+      display: block;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ---- Mic Panel ---- */
+    .mic-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.75rem;
+      min-height: 460px;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mic-panel::before {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      transition: opacity 0.4s;
+      opacity: 0;
+    }
+    .mic-panel.listening::before { opacity: 1; }
+
+    /* Continuous mode banner */
+    .continuous-banner {
+      width: 100%;
+      background: rgba(255,107,53,0.08);
+      border: 1px solid rgba(255,107,53,0.2);
+      border-radius: 10px;
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--warn);
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .continuous-banner.visible { opacity: 1; }
+
+    .banner-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--warn);
+      animation: pulse 1s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    /* Mic button */
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .mic-btn:hover {
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.05);
+      transform: scale(1.05);
+    }
+
+    .mic-btn.listening {
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.1);
+      animation: mic-ring 1.2s ease-out infinite;
+    }
+
+    /* Continuous standby — orange */
+    .mic-btn.continuous-standby {
+      border-color: var(--warn);
+      background: rgba(255,107,53,0.08);
+      animation: mic-ring-warn 1.6s ease-out infinite;
+    }
+
+    @keyframes mic-ring {
+      0%   { box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
+      70%  { box-shadow: 0 0 0 20px rgba(0,229,160,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,229,160,0); }
+    }
+
+    @keyframes mic-ring-warn {
+      0%   { box-shadow: 0 0 0 0 rgba(255,107,53,0.35); }
+      70%  { box-shadow: 0 0 0 18px rgba(255,107,53,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,107,53,0); }
+    }
+
+    .mic-icon {
+      width: 36px; height: 36px;
+      fill: var(--muted);
+      transition: fill 0.3s;
+    }
+    .mic-btn.listening .mic-icon            { fill: var(--accent); }
+    .mic-btn.continuous-standby .mic-icon   { fill: var(--warn); }
+    .mic-btn:hover .mic-icon                { fill: var(--text); }
+
+    /* Stop square shown in continuous standby */
+    .stop-icon {
+      display: none;
+      width: 28px; height: 28px;
+      background: var(--warn);
+      border-radius: 5px;
+    }
+    .mic-btn.continuous-standby .mic-icon { display: none; }
+    .mic-btn.continuous-standby .stop-icon { display: block; }
+    .mic-btn.continuous-standby.listening .mic-icon  { display: block; fill: var(--accent); }
+    .mic-btn.continuous-standby.listening .stop-icon { display: none; }
+
+    /* Waveform */
+    .waveform {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 40px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .waveform.active { opacity: 1; }
+
+    .wave-bar {
+      width: 4px;
+      background: var(--accent);
+      border-radius: 4px;
+      animation: wave 1s ease-in-out infinite;
+      height: 8px;
+    }
+    .wave-bar:nth-child(1) { animation-delay: 0.0s; }
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+    .wave-bar:nth-child(6) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(7) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(9) { animation-delay: 0.0s; }
+
+    @keyframes wave {
+      0%, 100% { height: 6px; }
+      50%       { height: 32px; }
+    }
+
+    /* Status text */
+    .mic-status {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-align: center;
+      min-height: 1.2em;
+      transition: color 0.3s;
+    }
+    .mic-status.active { color: var(--accent); }
+    .mic-status.warn   { color: var(--warn); }
+    .mic-status.error  { color: var(--warn); }
+
+    /* Response box */
+    .response-box {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .response-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .response-text {
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 600;
+      min-height: 1.3em;
+    }
+
+    .heard-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+    }
+
+    .heard-text {
+      font-size: 0.82rem;
+      color: var(--accent2);
+      font-family: 'DM Mono', monospace;
+      min-height: 1.2em;
+    }
+
+    /* History log */
+    .history-box {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      max-height: 120px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .history-box.visible { display: block; }
+
+    .history-box::-webkit-scrollbar { width: 4px; }
+    .history-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .history-header {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .history-item {
+      display: flex;
+      gap: 0.5rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      padding: 0.2rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-time { color: var(--border); flex-shrink: 0; }
+    .history-cmd  { color: var(--accent2); }
+
+    /* ---- Sidebar ---- */
+    .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+
+    .card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .toggle-label { font-size: 0.88rem; font-weight: 600; }
+
+    .toggle {
+      position: relative;
+      width: 52px; height: 28px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 28px;
+      transition: 0.3s;
+    }
+
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 4px; bottom: 4px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    input:checked + .slider {
+      background: var(--warn);
+      box-shadow: 0 0 12px rgba(255,107,53,0.4);
+    }
+
+    input:checked + .slider::before { transform: translateX(24px); }
+
+    .toggle-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+
+    .status-indicator.active {
+      background: rgba(0,229,160,0.05);
+      border-color: rgba(0,229,160,0.15);
+      color: var(--accent);
+    }
+
+    .status-indicator.continuous-on {
+      background: rgba(255,107,53,0.05);
+      border-color: rgba(255,107,53,0.15);
+      color: var(--warn);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .status-indicator.active .status-dot,
+    .status-indicator.continuous-on .status-dot {
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .cmd-list { display: flex; flex-direction: column; gap: 0.45rem; }
+
+    .cmd-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .cmd-item:hover { border-color: var(--accent2); color: var(--text); }
+    .cmd-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+
+    .step-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .step-list li {
+      display: flex; gap: 0.75rem; align-items: flex-start;
+      font-size: 0.82rem; color: var(--muted); line-height: 1.5;
+    }
+
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--border); color: var(--accent);
+      font-size: 0.7rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-family: 'DM Mono', monospace;
+    }
+
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.55rem 1.2rem; border-radius: 8px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); font-family: 'Syne', sans-serif;
+      font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; transition: all 0.2s; cursor: pointer;
+    }
+
+    .btn-back:hover {
+      color: var(--text); border-color: var(--accent);
+      background: rgba(0,229,160,0.05);
+    }
+
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .page-title { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Access</a>
+  <a href="/">Home</a>
+  <a href="/hand">Hand Signs</a>
+  <a href="/voice" class="active">Voice</a>
+  <a href="/eye">Eye Gaze</a>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Voice <span>Commands</span></h1>
+      <p class="page-subtitle">// speech recognition · continuous listening · hands-free control</p>
+    </div>
+    <a class="btn-back" href="/" id="backBtn">← Back</a>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- Mic Panel -->
+    <div class="mic-panel" id="micPanel">
+
+      <div class="continuous-banner" id="continuousBanner">
+        <span class="banner-dot"></span>
+        CONTINUOUS MODE — Click the orange square to stop
+      </div>
+
+      <div class="mic-btn" id="micBtn" onclick="handleMicClick()">
+        <svg class="mic-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-7 8a7 7 0 0 0 14 0h2a9 9 0 0 1-8 8.94V22h-2v-2.06A9 9 0 0 1 3 11h2z"/>
+        </svg>
+        <div class="stop-icon"></div>
+      </div>
+
+      <div class="waveform" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+
+      <p class="mic-status" id="micStatus">Click the mic to start listening</p>
+
+      <div class="response-box">
+        <span class="heard-label">You said</span>
+        <span class="heard-text" id="heardText">—</span>
+        <span class="response-label" style="margin-top:0.5rem">Response</span>
+        <span class="response-text" id="responseText">Waiting for command...</span>
+      </div>
+
+      <div class="history-box" id="historyBox">
+        <div class="history-header">Command History</div>
+        <div id="historyList"></div>
+      </div>
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Continuous Mode Toggle -->
+      <div class="card">
+        <p class="card-label">Listening Mode</p>
+        <div class="toggle-row">
+          <span class="toggle-label">Continuous</span>
+          <label class="toggle">
+            <input type="checkbox" id="continuousToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="toggle-hint">When ON, listens again automatically after each command. Click the orange square to stop.</p>
+      </div>
+
+      <!-- Status -->
+      <div class="card">
+        <p class="card-label">Status</p>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-dot"></span>
+          <span id="statusText">Idle</span>
+        </div>
+      </div>
+
+      <!-- Example commands -->
+      <div class="card">
+        <p class="card-label">Example commands</p>
+        <div class="cmd-list">
+          <div class="cmd-item"><span class="cmd-dot"></span>Search Google for weather</div>
+          <div class="cmd-item"><span class="cmd-dot"></span>Open YouTube</div>
+          <div class="cmd-item"><span class="cmd-dot"></span>Type hello world</div>
+          <div class="cmd-item"><span class="cmd-dot"></span>Scroll down</div>
+          <div class="cmd-item"><span class="cmd-dot"></span>Take screenshot</div>
+          <div class="cmd-item"><span class="cmd-dot"></span>What time is it</div>
+        </div>
+      </div>
+
+      <!-- How to use -->
+      <div class="card">
+        <p class="card-label">How to use</p>
+        <ul class="step-list">
+          <li>
+            <span class="step-num">1</span>
+            Toggle <strong style="color:var(--warn)">Continuous</strong> ON to keep listening after every command.
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            Or click the mic once for a single command.
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            Click the <strong style="color:var(--warn)">orange square</strong> to stop continuous mode.
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const micBtn           = document.getElementById('micBtn');
+  const micPanel         = document.getElementById('micPanel');
+  const waveform         = document.getElementById('waveform');
+  const micStatus        = document.getElementById('micStatus');
+  const statusEl         = document.getElementById('statusIndicator');
+  const statusText       = document.getElementById('statusText');
+  const heardText        = document.getElementById('heardText');
+  const responseText     = document.getElementById('responseText');
+  const continuousToggle = document.getElementById('continuousToggle');
+  const continuousBanner = document.getElementById('continuousBanner');
+  const historyBox       = document.getElementById('historyBox');
+  const historyList      = document.getElementById('historyList');
+
+  let isListening    = false;
+  let continuousMode = false;
+  let stopRequested  = false;
+
+  // ===================== UI helpers =====================
+
+  function setIdle() {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    micPanel.classList.remove('listening');
+    waveform.classList.remove('active');
+
+    if (continuousMode) {
+      micBtn.classList.add('continuous-standby');
+      micStatus.textContent  = 'Ready — waiting for next command...';
+      micStatus.className    = 'mic-status warn';
+      statusEl.className     = 'status-indicator continuous-on';
+      statusText.textContent = 'Continuous ON';
+    } else {
+      micBtn.classList.remove('continuous-standby');
+      micStatus.textContent  = 'Click the mic to start listening';
+      micStatus.className    = 'mic-status';
+      statusEl.className     = 'status-indicator';
+      statusText.textContent = 'Idle';
+    }
+  }
+
+  function setListeningUI() {
+    isListening = true;
+    micBtn.classList.add('listening');
+    micPanel.classList.add('listening');
+    waveform.classList.add('active');
+    micStatus.textContent  = 'Listening...';
+    micStatus.className    = 'mic-status active';
+    statusEl.className     = 'status-indicator active';
+    statusText.textContent = 'Listening';
+  }
+
+  function setProcessingUI() {
+    micBtn.classList.remove('listening');
+    micPanel.classList.remove('listening');
+    waveform.classList.remove('active');
+    micStatus.textContent  = 'Processing...';
+    micStatus.className    = 'mic-status active';
+    statusEl.className     = 'status-indicator active';
+    statusText.textContent = 'Processing';
+  }
+
+  function setSpeakingUI() {
+    micStatus.textContent  = 'Speaking response...';
+    micStatus.className    = 'mic-status active';
+    statusEl.className     = 'status-indicator active';
+    statusText.textContent = 'Speaking';
+  }
+
+  function setError(msg) {
+    isListening = false;
+    micStatus.textContent  = msg;
+    micStatus.className    = 'mic-status error';
+    statusEl.className     = 'status-indicator';
+    statusText.textContent = 'Error';
+  }
+
+  function addHistory(heard) {
+    const now = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<span class="history-time">${now}</span><span class="history-cmd">${heard || '?'}</span>`;
+    historyList.prepend(item);
+  }
+
+  // ===================== Continuous toggle =====================
+
+  continuousToggle.addEventListener('change', () => {
+    continuousMode = continuousToggle.checked;
+
+    if (continuousMode) {
+      stopRequested = false;
+      continuousBanner.classList.add('visible');
+      historyBox.classList.add('visible');
+      startContinuousLoop();
+    } else {
+      stopListening();
+    }
+  });
+
+  function stopListening() {
+    continuousMode = false;
+    stopRequested  = true;
+    continuousToggle.checked = false;
+    continuousBanner.classList.remove('visible');
+    historyBox.classList.remove('visible');
+    setIdle();
+  }
+
+  // ===================== Mic click =====================
+
+  function handleMicClick() {
+    if (continuousMode && !isListening) {
+      stopListening();
+      return;
+    }
+    if (isListening) return;
+    runOneCommand();
+  }
+
+  // ===================== Single command =====================
+  // Note: fetch('/listen_voice_json') blocks until:
+  //   1. mic listens
+  //   2. command executes
+  //   3. response is spoken aloud (synchronous speak on server)
+  // So when the fetch resolves, speaking is already done — safe to re-listen.
+
+  async function runOneCommand() {
+    if (isListening) return;
+
+    setListeningUI();
+    heardText.textContent    = '—';
+    responseText.textContent = 'Listening...';
+
+    try {
+      // Show "Processing" briefly after user stops speaking
+      // The actual fetch waits for the full cycle including speaking
+      const res  = await fetch('/listen_voice_json');
+
+      setProcessingUI();
+      const data = await res.json();
+
+      // Show speaking state while server is actually done but UI catches up
+      setSpeakingUI();
+      heardText.textContent    = data.heard    || '(nothing heard)';
+      responseText.textContent = data.response || '—';
+
+      if (continuousMode) addHistory(data.heard);
+
+      // Small gap after response before next listen cycle
+      await sleep(800);
+      return data;
+
+    } catch (e) {
+      setError('Server error — is Flask running?');
+      return null;
+    }
+  }
+
+  // ===================== Continuous loop =====================
+  // No extra delay needed — fetch() itself blocks until speak() finishes on server.
+
+  async function startContinuousLoop() {
+    while (continuousMode && !stopRequested) {
+      setIdle();
+      await sleep(300);
+
+      if (!continuousMode || stopRequested) break;
+
+      await runOneCommand();  // blocks until listen + execute + speak all done
+      // No extra sleep needed — speak already finished before this line runs
+    }
+
+    if (!continuousMode) setIdle();
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  // ===================== Back button =====================
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    stopListening();
+    window.location.href = '/';
+  });
+</script>
+</body>
+</html>

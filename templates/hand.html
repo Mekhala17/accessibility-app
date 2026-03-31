@@ -1,13 +1,543 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Hand Sign Recognition</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hand Sign Recognition — Accessibility Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080e1a;
+      --surface: #0d1626;
+      --card: #111d33;
+      --border: #1e3050;
+      --accent: #00e5a0;
+      --accent2: #00b8ff;
+      --warn: #ff6b35;
+      --text: #e8f0fe;
+      --muted: #5a7a9a;
+      --glow: 0 0 24px rgba(0, 229, 160, 0.25);
+    }
 
-<img src="/video_feed" width="960" height="540">
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,14,26,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2.5rem;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .page-title span {
+      display: block;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ---- Video Feed ---- */
+    .video-wrapper {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      position: relative;
+      box-shadow: var(--glow);
+    }
+
+    .video-wrapper img {
+      width: 100%;
+      display: block;
+    }
+
+    .video-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(8,14,26,0.8);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* ---- Sidebar ---- */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+
+    .card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    /* Status */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: rgba(0,229,160,0.05);
+      border: 1px solid rgba(0,229,160,0.15);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    /* Detected sign display */
+    .sign-display {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 1rem;
+    }
+
+    .sign-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .sign-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.02em;
+      min-height: 2rem;
+    }
+
+    /* Gesture list — 6 actual signs */
+    .gesture-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .gesture-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .gesture-item:hover {
+      border-color: var(--accent2);
+      color: var(--text);
+    }
+
+    .gesture-item.active {
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.06);
+      color: var(--accent);
+    }
+
+    .gesture-emoji {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      width: 24px;
+      text-align: center;
+    }
+
+    .gesture-name {
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .gesture-idx {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--border);
+    }
+
+    /* Steps */
+    .step-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .step-list li {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Stats */
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .stat-item:last-child { border-bottom: none; }
+    .stat-key {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .stat-val {
+      font-weight: 700;
+      color: var(--accent2);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Back button */
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .btn-back:hover {
+      color: var(--text);
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.05);
+    }
+
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .page-title { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Access</a>
+  <a href="/">Home</a>
+  <a href="/hand" class="active">Hand Signs</a>
+  <a href="/voice">Voice</a>
+  <a href="/eye">Eye Gaze</a>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Hand Sign <span>Recognition</span></h1>
+      <p class="page-subtitle">// landmark detection · gesture classification · text-to-speech</p>
+    </div>
+    <a class="btn-back" href="/" id="backBtn">← Back</a>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- Video Feed -->
+    <div>
+      <div class="video-wrapper">
+        <img src="/video_feed" alt="Hand sign camera feed"/>
+        <div class="video-badge">
+          <span class="live-dot"></span>
+          LIVE · MediaPipe Hands
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Status + detected sign -->
+      <div class="card">
+        <p class="card-label">Detection</p>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Camera Active</span>
+        </div>
+        <div class="sign-display">
+          <span class="sign-label">Last detected sign</span>
+          <span class="sign-value" id="signValue">—</span>
+        </div>
+      </div>
+
+      <!-- The 6 actual signs from keypoint_classifier_label.csv -->
+      <div class="card">
+        <p class="card-label">Supported signs</p>
+        <div class="gesture-list" id="gestureList">
+          <div class="gesture-item" data-sign="Hello">
+            <span class="gesture-emoji">👋</span>
+            <span class="gesture-name">Hello</span>
+            <span class="gesture-idx">#1</span>
+          </div>
+          <div class="gesture-item" data-sign="Peace">
+            <span class="gesture-emoji">✌️</span>
+            <span class="gesture-name">Peace</span>
+            <span class="gesture-idx">#2</span>
+          </div>
+          <div class="gesture-item" data-sign="Thank You">
+            <span class="gesture-emoji">🙏</span>
+            <span class="gesture-name">Thank You</span>
+            <span class="gesture-idx">#3</span>
+          </div>
+          <div class="gesture-item" data-sign="Stop">
+            <span class="gesture-emoji">🛑</span>
+            <span class="gesture-name">Stop</span>
+            <span class="gesture-idx">#4</span>
+          </div>
+          <div class="gesture-item" data-sign="You">
+            <span class="gesture-emoji">👉</span>
+            <span class="gesture-name">You</span>
+            <span class="gesture-idx">#5</span>
+          </div>
+          <div class="gesture-item" data-sign="SELF INTRO : I am Liki, deaf and mute.Nice to meet you">
+            <span class="gesture-emoji">🤝</span>
+            <span class="gesture-name">Self Intro</span>
+            <span class="gesture-idx">#6</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- How to use -->
+      <div class="card">
+        <p class="card-label">How to use</p>
+        <ul class="step-list">
+          <li>
+            <span class="step-num">1</span>
+            Hold your hand 30–60 cm from the camera in good lighting.
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            Hold the gesture steady — it stabilises after a moment.
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            The sign will be <strong style="color:var(--accent2)">spoken aloud</strong> automatically.
+          </li>
+        </ul>
+      </div>
+
+      <!-- Model info -->
+      <div class="card">
+        <p class="card-label">Model info</p>
+        <div>
+          <div class="stat-item">
+            <span class="stat-key">Total signs</span>
+            <span class="stat-val">6</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-key">Landmarks / hand</span>
+            <span class="stat-val">21 pts</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-key">Max hands</span>
+            <span class="stat-val">2</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-key">Detection conf.</span>
+            <span class="stat-val">0.70</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <script>
-window.addEventListener("beforeunload", function () {
-    navigator.sendBeacon("/stop_camera");
-});
-</script>
+  // Poll /current_sign every second to highlight active gesture
+  async function pollSign() {
+    try {
+      const res = await fetch('/current_sign');
+      if (res.ok) {
+        const data = await res.json();
+        const sign = data.sign || '—';
+        document.getElementById('signValue').textContent = sign;
 
-{% endblock %}
+        // Highlight matching gesture item
+        document.querySelectorAll('.gesture-item').forEach(el => {
+          el.classList.toggle('active', el.dataset.sign === sign);
+        });
+      }
+    } catch(e) {}
+  }
+
+  setInterval(pollSign, 800);
+
+  // Stop camera when leaving
+  document.getElementById('backBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    try { await fetch('/stop_camera', { method: 'POST' }); } catch(e) {}
+    window.location.href = '/';
+  });
+
+  window.addEventListener('beforeunload', () => {
+    navigator.sendBeacon('/stop_camera');
+  });
+</script>
+</body>
+</html>

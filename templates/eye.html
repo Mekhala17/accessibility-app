@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Eye Gaze AAC — Accessibility Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080e1a;
+      --surface: #0d1626;
+      --card: #111d33;
+      --border: #1e3050;
+      --accent: #00e5a0;
+      --accent2: #00b8ff;
+      --warn: #ff6b35;
+      --text: #e8f0fe;
+      --muted: #5a7a9a;
+      --glow: 0 0 24px rgba(0, 229, 160, 0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,14,26,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2.5rem;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    nav a:hover, nav a.active { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .page-title span {
+      display: block;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .btn-back:hover {
+      color: var(--text);
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.05);
+    }
+
+    /* Main layout: Camera on left, AAC board on right */
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    /* Camera Section */
+    .camera-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .video-wrapper {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      position: relative;
+      box-shadow: var(--glow);
+      width: 100%;
+      height: 450px;
+    }
+
+    .video-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .video-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(8,14,26,0.9);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .controls-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+
+    .card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .toggle {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 28px;
+      transition: 0.3s;
+    }
+
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 4px; bottom: 4px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    input:checked + .slider {
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(0, 229, 160, 0.4);
+    }
+
+    input:checked + .slider::before {
+      transform: translateX(24px);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: rgba(0,229,160,0.05);
+      border: 1px solid rgba(0,229,160,0.15);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      transition: all 0.3s;
+      margin-bottom: 1rem;
+    }
+
+    .status-indicator.off {
+      background: rgba(255,107,53,0.05);
+      border-color: rgba(255,107,53,0.15);
+      color: var(--warn);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .status-indicator:not(.off) .status-dot {
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    .sens-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sens-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+    }
+
+    .sens-val {
+      font-family: 'DM Mono', monospace;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    input[type=range] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      background: var(--border);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0,229,160,0.5);
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px rgba(0,229,160,0.5);
+    }
+
+    /* AAC Communication Board */
+    .aac-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      background: rgba(0,229,160,0.02);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      height: fit-content;
+    }
+
+    .aac-title {
+      color: var(--accent);
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .aac-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .aac-block {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .aac-block:hover {
+      border-color: var(--accent);
+      background: rgba(0, 229, 160, 0.1);
+      transform: translateY(-2px);
+      box-shadow: var(--glow);
+    }
+
+    .aac-block.active {
+      border-color: var(--accent);
+      background: rgba(0, 229, 160, 0.2);
+      box-shadow: var(--glow);
+      transform: scale(1.05);
+    }
+
+    .aac-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .aac-text {
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+      .aac-board {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .aac-board {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .page-title {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Access</a>
+  <a href="/">Home</a>
+  <a href="/hand">Hand Signs</a>
+  <a href="/voice">Voice</a>
+  <a href="/eye" class="active">Eye Gaze</a>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Eye Gaze <span>AAC Board</span></h1>
+      <p class="page-subtitle">// communication board · eye-tracking selection · text-to-speech</p>
+    </div>
+    <a class="btn-back" href="/" id="backBtn">← Back</a>
+  </div>
+
+  <div class="main-content">
+    <!-- LEFT: Camera Feed & Controls -->
+    <div class="camera-section">
+      <div class="video-wrapper">
+        <img id="eyeFeed" src="/eye_feed" alt="Eye gaze camera feed"/>
+        <div class="video-badge">
+          <span class="live-dot"></span>
+          LIVE
+        </div>
+      </div>
+
+      <div class="controls-card">
+        <p class="card-label">Control</p>
+
+        <div id="statusIndicator" class="status-indicator off" style="margin-bottom:1rem">
+          <span class="status-dot"></span>
+          <span id="statusText">Eye Control OFF</span>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Enable Eye Gaze</span>
+          <label class="toggle">
+            <input type="checkbox" id="gazeToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="controls-card">
+        <p class="card-label">Smoothing</p>
+        <div class="sens-row">
+          <div class="sens-header">
+            <span style="color:var(--muted);font-size:0.8rem">Cursor smoothing</span>
+            <span class="sens-val" id="smoothVal">5</span>
+          </div>
+          <input type="range" id="smoothSlider" min="1" max="15" value="5">
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: AAC Board -->
+    <div class="aac-section">
+      <h2 class="aac-title">Communication Board</h2>
+      <div class="aac-board" id="aacBoard"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // AAC Words with their full sentences
+  const aacWords = [
+    { icon: '💧', word: 'water', sentence: 'I want water' },
+    { icon: '🍎', word: 'food', sentence: 'I am hungry' },
+    { icon: '🛏️', word: 'sleep', sentence: 'I want to sleep' },
+    { icon: '🚻', word: 'bathroom', sentence: 'I need to use the bathroom' },
+    { icon: '❤️', word: 'help', sentence: 'I need help' },
+    { icon: '😊', word: 'happy', sentence: 'I am happy' },
+    { icon: '😢', word: 'sad', sentence: 'I am sad' },
+    { icon: '😤', word: 'pain', sentence: 'I am in pain' },
+    { icon: '👋', word: 'hello', sentence: 'Hello' },
+    { icon: '👍', word: 'yes', sentence: 'Yes' },
+    { icon: '👎', word: 'no', sentence: 'No' },
+    { icon: '🛑', word: 'stop', sentence: 'Please stop' },
+    { icon: '📞', word: 'call', sentence: 'Please call someone' },
+    { icon: '🎤', word: 'talk', sentence: 'I want to talk' },
+    { icon: '🌙', word: 'tired', sentence: 'I am tired' },
+    { icon: '🔥', word: 'hot', sentence: 'I am hot' },
+    { icon: '❄️', word: 'cold', sentence: 'I am cold' },
+    { icon: '💊', word: 'medicine', sentence: 'I need medicine' },
+    { icon: '📺', word: 'tv', sentence: 'Can I watch TV?' },
+    { icon: '🎵', word: 'music', sentence: 'I want to hear music' },
+  ];
+
+  const toggle = document.getElementById('gazeToggle');
+  const statusEl = document.getElementById('statusIndicator');
+  const statusText = document.getElementById('statusText');
+  const smoothSlider = document.getElementById('smoothSlider');
+  const smoothVal = document.getElementById('smoothVal');
+  const aacBoard = document.getElementById('aacBoard');
+
+  let eyeControlEnabled = false;
+
+  // Create AAC blocks
+  function createAACBoard() {
+    aacBoard.innerHTML = '';
+    aacWords.forEach(item => {
+      const block = document.createElement('div');
+      block.className = 'aac-block';
+      block.innerHTML = `
+        <div class="aac-icon">${item.icon}</div>
+        <div class="aac-text">${item.word}</div>
+      `;
+
+      block.addEventListener('click', () => {
+        speak(item.sentence);
+        block.classList.add('active');
+        setTimeout(() => block.classList.remove('active'), 300);
+      });
+
+      aacBoard.appendChild(block);
+    });
+  }
+
+  // Text to speech
+  function speak(text) {
+    fetch('/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    }).catch(e => console.error('Speech error:', e));
+  }
+
+  // Toggle eye gaze
+  toggle.addEventListener('change', async () => {
+    eyeControlEnabled = toggle.checked;
+
+    try {
+      await fetch('/toggle_eye_gaze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: eyeControlEnabled })
+      });
+    } catch (e) { console.error(e); }
+
+    if (eyeControlEnabled) {
+      statusEl.classList.remove('off');
+      statusText.textContent = '✓ Eye Control ACTIVE';
+    } else {
+      statusEl.classList.add('off');
+      statusText.textContent = 'Eye Control OFF';
+    }
+  });
+
+  // Smoothing slider
+  smoothSlider.addEventListener('input', async () => {
+    const val = smoothSlider.value;
+    smoothVal.textContent = val;
+    try {
+      await fetch('/toggle_eye_gaze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: eyeControlEnabled, smoothing: parseInt(val) })
+      });
+    } catch(e) {}
+  });
+
+  // Back button
+  document.getElementById('backBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    toggle.checked = false;
+    try { await fetch('/stop_camera', { method: 'POST' }); } catch(e) {}
+    window.location.href = '/';
+  });
+
+  // Cleanup on unload
+  window.addEventListener('beforeunload', () => {
+    navigator.sendBeacon('/stop_camera');
+  });
+
+  // Initialize
+  createAACBoard();
+</script>
+</body>
+</html>

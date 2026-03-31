@@ -1,44 +1,34 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import numpy as np
-import tensorflow as tf
+
+try:
+    from ai_edge_litert.interpreter import Interpreter
+except ImportError:
+    try:
+        import tflite_runtime.interpreter as tflite
+        Interpreter = tflite.Interpreter
+    except ImportError:
+        import tensorflow as tf
+        Interpreter = tf.lite.Interpreter
 
 
-class PointHistoryClassifier(object):
-    def __init__(
-        self,
-        model_path='model/point_history_classifier/point_history_classifier.tflite',
-        score_th=0.5,
-        invalid_value=0,
-        num_threads=1,
-    ):
-        self.interpreter = tf.lite.Interpreter(model_path=model_path,
-                                               num_threads=num_threads)
-
+class PointHistoryClassifier:
+    def __init__(self, model_path="model/point_history_classifier/point_history_classifier.tflite",
+                 score_th=0.5, invalid_value=0, num_threads=1):
+        self.interpreter = Interpreter(model_path=model_path, num_threads=num_threads)
         self.interpreter.allocate_tensors()
-        self.input_details = self.interpreter.get_input_details()
+        self.input_details  = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
-
-        self.score_th = score_th
+        self.score_th      = score_th
         self.invalid_value = invalid_value
 
-    def __call__(
-        self,
-        point_history,
-    ):
-        input_details_tensor_index = self.input_details[0]['index']
+    def __call__(self, point_history):
         self.interpreter.set_tensor(
-            input_details_tensor_index,
-            np.array([point_history], dtype=np.float32))
+            self.input_details[0]["index"],
+            np.array([point_history], dtype=np.float32)
+        )
         self.interpreter.invoke()
-
-        output_details_tensor_index = self.output_details[0]['index']
-
-        result = self.interpreter.get_tensor(output_details_tensor_index)
-
-        result_index = np.argmax(np.squeeze(result))
-
+        result = self.interpreter.get_tensor(self.output_details[0]["index"])
+        result_index = int(np.argmax(np.squeeze(result)))
         if np.squeeze(result)[result_index] < self.score_th:
-            result_index = self.invalid_value
-
+            return self.invalid_value
         return result_index
