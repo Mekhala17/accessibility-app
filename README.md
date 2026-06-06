@@ -67,6 +67,16 @@ By combining **voice and gesture interfaces**, the app creates an **inclusive, m
 
 [![Watch the Demo](https://img.youtube.com/vi/aQF05q1Ozj0/0.jpg)](https://youtu.be/aQF05q1Ozj0)
 
+<img width="1080" height="546" alt="WhatsApp Image 2026-06-06 at 1 19 51 PM" src="https://github.com/user-attachments/assets/3c0b2541-a8e8-4cb7-848b-0bd95ca0b5cd" />
+<img width="1600" height="940" alt="image" src="https://github.com/user-attachments/assets/11a88c41-3eef-4009-894b-c73cd18fd276" />
+<img width="1600" height="940" alt="image" src="https://github.com/user-attachments/assets/d19b24ff-8ede-4c6a-a963-eb565cc5b837" />
+<img width="1600" height="885" alt="image" src="https://github.com/user-attachments/assets/c6cebe6b-64f4-4430-97a5-47577908298e" />
+<img width="1080" height="539" alt="image" src="https://github.com/user-attachments/assets/df6858fa-4a8a-41ca-861b-8184a969382d" />
+
+
+
+
+
 
 ## 📜 Credits
 
